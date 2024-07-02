@@ -98,7 +98,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-200 flex items-center justify-center p-4">
-      <div className="bg-white p-16 rounded-lg shadow-lg w-full max-w-xl">
+      <div className="bg-white p-6 md:p-16 rounded-lg shadow-lg w-full max-w-xl">
         <h1 className="text-4xl font-bold text-center mb-6 text-gray-800">
           Upload Audio File
         </h1>
@@ -146,10 +146,10 @@ export default function Home() {
           {audioFiles.length > 0 ? (
             <ul className="w-full ">
               {audioFiles.map((file, index) => (
-                <li key={file.name} className="mb-4 flex gap-8 items-center">
+                <li key={file.name} className="mb-4 flex gap-2 md:gap-8 items-center">
                   <a
                     href={file.download_url}
-                    className="text-blue-500 "
+                    className="text-blue-500 flex "
                   >
                     <span className="text-black">{index + 1}. </span>
 
@@ -157,7 +157,7 @@ export default function Home() {
                   </a>
                   <button
                     onClick={() => handleEmbed(`https://eric-audio-button.vercel.app/embeded/${file.name}`)}
-                    className="bg-blue-500 text-white font-semibold p-2 rounded-lg mt-2 hover:bg-blue-600 transition-colors"
+                    className="bg-blue-500 text-white font-semibold p-2 rounded-lg mt-2 hover:bg-blue-600 transition-colors text-xs md:text-base"
                   >
                     Get Embeded Code
                   </button>
