@@ -1,11 +1,29 @@
-'use client';
-import { useState, ChangeEvent, FormEvent } from 'react';
+"use client";
+import { useState, useEffect, ChangeEvent, FormEvent } from "react";
 
 export default function Home() {
   const [file, setFile] = useState<File | null>(null);
-  const [uploadLink, setUploadLink] = useState('');
-  const [uploadDate, setUploadDate] = useState('');
+  const [uploadLink, setUploadLink] = useState("");
+  const [htmlLink, setHtmlLink] = useState("");
+  const [uploadDate, setUploadDate] = useState("");
   const [loading, setLoading] = useState(false);
+  const [audioFiles, setAudioFiles] = useState<
+    { name: string; download_url: string }[]
+  >([]);
+
+  const fetchAudioFiles = async () => {
+    const response = await fetch("/api/audio-files");
+    const data = await response.json();
+    if (response.ok) {
+      setAudioFiles(data.files);
+    } else {
+      alert("Failed to fetch audio files: " + data.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchAudioFiles();
+  }, []);
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files ? e.target.files[0] : null);
@@ -18,25 +36,27 @@ export default function Home() {
 
     const reader = new FileReader();
     reader.onloadend = async () => {
-      const content = reader.result?.toString().split(',')[1];
+      const content = reader.result?.toString().split(",")[1];
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
+      const response = await fetch("/api/upload", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json'
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           filename: file.name,
-          content: content
-        })
+          content: content,
+        }),
       });
 
       const result = await response.json();
       if (response.ok) {
-        setUploadLink(result.link);
+        setUploadLink(result.audioLink);
+        setHtmlLink(result.htmlLink);
         setUploadDate(new Date().toLocaleString());
+        fetchAudioFiles(); // Fetch audio files after successful upload
       } else {
-        alert('File upload failed: ' + result.message);
+        alert("File upload failed: " + result.message);
       }
       setLoading(false);
     };
@@ -44,10 +64,44 @@ export default function Home() {
     reader.readAsDataURL(file);
   };
 
+  const handleDelete = async (filename: string) => {
+    const response = await fetch("/api/delete", {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ filename }),
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      alert("File deleted successfully");
+      setAudioFiles((prevFiles) =>
+        prevFiles.filter((file) => file.name !== filename)
+      );
+    } else {
+      alert("File deletion failed: " + result.message);
+    }
+  };
+
+  const handleEmbed = (download_url: string) => {
+    const iframeCode = `<iframe style="width: 100%; border: none; height: 350px;" src="${download_url}" allowfullscreen="" allowtransparency=""></iframe>`;
+    navigator.clipboard
+      .writeText(iframeCode)
+      .then(() => {
+        alert("Embed code copied to clipboard!");
+      })
+      .catch(() => {
+        alert("Failed to copy embed code to clipboard");
+      });
+  };
+
   return (
-    <div className="min-h-screen bg-gray-200  flex items-center justify-center p-4">
-      <div className="bg-white p-16 rounded-lg shadow-lg w-full max-w-md">
-        <h1 className="text-4xl font-bold text-center mb-6 text-gray-800">Upload Audio File</h1>
+    <div className="min-h-screen bg-gray-200 flex items-center justify-center p-4">
+      <div className="bg-white p-16 rounded-lg shadow-lg w-full max-w-xl">
+        <h1 className="text-4xl font-bold text-center mb-6 text-gray-800">
+          Upload Audio File
+        </h1>
         <form onSubmit={handleSubmit} className="space-y-6">
           <input
             type="file"
@@ -59,22 +113,67 @@ export default function Home() {
           <button
             type="submit"
             className="w-full bg-gradient-to-r from-blue-500 to-red-500 text-white font-semibold py-2 rounded-lg hover:bg-gradient-to-l transition-colors text-lg"
-            disabled={loading} 
+            disabled={loading}
           >
-            {loading ? 'Uploading...' : 'Upload'}
+            {loading ? "Uploading..." : "Upload"}
           </button>
         </form>
         {uploadLink && (
           <div className="mt-6 p-4 bg-green-100 rounded-lg text-green-700">
             <p className="mb-2">File uploaded successfully!</p>
             <audio controls src={uploadLink} className="w-full mb-2">
-              Your browser does not support the audio element.
+              <source src={uploadLink} type="audio/mp3" />
             </audio>
             <p className="text-sm">Uploaded on: {uploadDate}</p>
-            <a href={uploadLink} className="text-blue-500 underline mt-2 block">View file</a>
-            <a href={'https://github.com/mr-rony356/Eric-Audio-button'} className="text-blue-500 underline mt-2 block">Check repo</a>
+            <a href={uploadLink} className="text-blue-500 underline mt-2 block">
+              View file
+            </a>
+            <a href={htmlLink} className="text-blue-500 underline mt-2 block">
+              View HTML
+            </a>
+            <button
+              onClick={() => handleEmbed(htmlLink)}
+              className="bg-blue-500 text-white font-semibold p-2 rounded-lg mt-2 hover:bg-blue-600 transition-colors"
+            >
+              Embed Audio
+            </button>
           </div>
         )}
+        <div className="mt-10 w-full">
+          <h2 className="text-2xl font-bold text-center mb-4 text-gray-800">
+            Available embeded codes
+          </h2>
+          {audioFiles.length > 0 ? (
+            <ul className="w-full ">
+              {audioFiles.map((file, index) => (
+                <li key={file.name} className="mb-4 flex gap-8 items-center">
+                  <a
+                    href={file.download_url}
+                    className="text-blue-500 "
+                  >
+                    <span className="text-black">{index + 1}. </span>
+
+                    {file.name}
+                  </a>
+                  <button
+                    onClick={() => handleEmbed(`https://eric-audio-button.vercel.app/embeded/${file.name}`)}
+                    className="bg-blue-500 text-white font-semibold p-2 rounded-lg mt-2 hover:bg-blue-600 transition-colors"
+                  >
+                    Get Embeded Code
+                  </button>
+                  <button
+                    onClick={() => handleDelete(file.name)}
+                    className="text-red-500 underline"
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No embeded codes available.</p>
+          )}
+        </div>
       </div>
     </div>
   );
